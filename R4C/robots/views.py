@@ -1,9 +1,15 @@
+from datetime import datetime, timedelta
 from json import JSONDecodeError, loads
+from openpyxl import Workbook
 from django.views.decorators.csrf import csrf_exempt
 
-from django.http import HttpResponse, HttpResponseBadRequest
+from django.http import (
+    HttpResponse,
+    HttpResponseBadRequest,
+    FileResponse,
+)
 
-from .orm_functions import create_robot
+from .orm_functions import create_robot, get_unique_version_dicts
 from .validators import validate_json, validate_datetime_field
 
 
@@ -59,5 +65,58 @@ def create_robots_api(request):
     else:
         return HttpResponseBadRequest(
             'You need to pass your JSON data via POST-method.',
+            status=405,
+        )
+
+
+@csrf_exempt
+def download_weekly_excel(request):
+    """Функциональное вью для URL-адреса, позволяющего скачать Excel-файл со статистикой
+    произведённых за последнюю неделю роботов."""
+
+    if request.method == 'GET':
+        today = datetime.now()
+        week_ago = today - timedelta(weeks=1)
+        query_dicts = get_unique_version_dicts(time_filter=week_ago)
+
+        # если ни одного робота за последнюю неделю
+        if not query_dicts:
+            return HttpResponse(
+                'No robots were created in last week.',
+                status=200,
+            )
+
+        file_name = f"""results/{week_ago.strftime("%Y-%m-%d %H-%M")}-{today.strftime("%Y-%m-%d %H-%M")}.xlsx"""
+        xl = Workbook()
+
+        for iter_dict in query_dicts:
+            model_name = iter_dict['model']
+
+            # если нет листа с названием модели, то создаём
+            if model_name not in xl.sheetnames:
+                new_sheet = xl.create_sheet(title=model_name)
+                columns = [
+                    'Модель',
+                    'Версия',
+                    'Количество за неделю',
+                ]
+                new_sheet.append(columns)
+
+            # в нужном листе добавляем значения из итерируемого словаря
+            cur_sheet = xl[model_name]
+            cur_sheet.append([val for val in iter_dict.values()])
+
+        # удаляем стандартный первый лист Sheet1 - он не нужен
+        xl.remove(worksheet=xl[xl.sheetnames[0]])
+        xl.save(filename=file_name)
+
+        return FileResponse(
+            open(file=file_name, mode='rb'),
+            status=200,
+        )
+
+    else:
+        return HttpResponseBadRequest(
+            'You need to access this page via GET-method.',
             status=405,
         )
