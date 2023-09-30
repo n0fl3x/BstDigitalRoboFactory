@@ -1,3 +1,8 @@
 from django.contrib import admin
 
-# Register your models here.
+from .models import Robot
+
+
+@admin.register(Robot)
+class RobotAdmin(admin.ModelAdmin):
+    pass
