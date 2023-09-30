@@ -26,6 +26,8 @@ robot_validate_schema = {
         "created": {
             "description": "Date and time of creation in '%Y-%m-%d %H:%M:%S' format.",
             "type": "string",
+            "minLength": 19,
+            "maxLength": 19,
         },
     },
 

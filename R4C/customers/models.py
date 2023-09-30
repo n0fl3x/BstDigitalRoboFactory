@@ -8,3 +8,6 @@ class Customer(models.Model):
         blank=False,
         null=False,
     )
+
+    def __str__(self):
+        return f'{self.email}'
