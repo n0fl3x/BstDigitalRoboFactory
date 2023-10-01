@@ -15,3 +15,6 @@ class Order(models.Model):
         blank=False,
         null=False,
     )
+
+    def __str__(self):
+        return f'{self.customer} - {self.robot_serial}'
